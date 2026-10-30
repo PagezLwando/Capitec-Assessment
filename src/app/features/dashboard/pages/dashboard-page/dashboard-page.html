@@ -21,6 +21,14 @@
         }
       </select>
     </label>
+      @if (periodError) {
+        <div class="period-error" role="alert">
+          <span>{{ periodError }}</span>
+          <button type="button" (click)="retryPeriodUpdate()">
+            Try again
+          </button>
+        </div>
+      }
   </header>
 
   @if (loading) {
@@ -32,7 +40,9 @@
     </section>
   } @else if (profile && summary && categories && trends && transactions && goals) {
     <section class="summary-grid" aria-label="Spending summary">
-      <article class="summary-card primary-card">
+      <article class="summary-card primary-card"   role="button" tabindex="0" (click)="scrollToTransactions()" (keydown.enter)="scrollToTransactions()"
+  (keydown.space)="scrollToTransactions(); $event.preventDefault()"
+  aria-label="View transactions for the selected period">
         <p>Total spending</p>
         <h2>{{ summary.totalSpent | currency: profile.currency : 'symbol-narrow' : '1.2-2' }}</h2>
         <span>
@@ -41,19 +51,37 @@
         </span>
       </article>
 
-      <article class="summary-card">
+      <article class="summary-card clickable-card"
+  role="button"
+  tabindex="0"
+  (click)="scrollToTransactions()"
+  (keydown.enter)="scrollToTransactions()"
+  (keydown.space)="scrollToTransactions(); $event.preventDefault()"
+  aria-label="View transactions for the selected period">
         <p>Transactions</p>
         <h2>{{ summary.transactionCount }}</h2>
         <span>In the selected period</span>
       </article>
 
-      <article class="summary-card">
+      <article class="summary-card  clickable-card"
+  role="button"
+  tabindex="0"
+  (click)="viewTopCategory()"
+  (keydown.enter)="viewTopCategory()"
+  (keydown.space)="viewTopCategory(); $event.preventDefault()"
+  aria-label="View transactions in the top spending category">
         <p>Average transaction</p>
         <h2>{{ summary.averageTransaction | currency: profile.currency : 'symbol-narrow' : '1.2-2' }}</h2>
         <span>Per transaction</span>
       </article>
 
-      <article class="summary-card">
+      <article class="summary-card clickable-card"
+  role="button"
+  tabindex="0"
+  (click)="viewTopCategory()"
+  (keydown.enter)="viewTopCategory()"
+  (keydown.space)="viewTopCategory(); $event.preventDefault()"
+  aria-label="View transactions in the top spending category">
         <p>Top category</p>
         <h2 class="category-title">{{ summary.topCategory }}</h2>
         <span>Highest spending category</span>
@@ -147,7 +175,24 @@
     <section class="panel transactions-panel">
       <div class="panel-heading transactions-heading">
         <div>
-          <h2>Recent transactions</h2>
+          <div class="transactions-title">
+            <h2>Recent transactions</h2>
+
+            @if (transactionsLoading) {
+              <span class="loading-indicator" role="status">
+                Updating…
+              </span>
+            }
+          </div>
+          @if (transactionError) {
+            <p class="transaction-error" role="alert">
+              {{ transactionError }}
+              <button type="button" (click)="loadTransactions()">
+                Try again
+              </button>
+            </p>
+          }
+
           <p>{{ transactions.pagination.total }} transactions found</p>
         </div>
 
@@ -179,6 +224,17 @@
               <option value="amount_asc">Lowest amount</option>
             </select>
           </label>
+
+          
+          <button
+            type="button"
+            class="reset-filters-button"
+            (click)="resetTransactionFilters()"
+            [disabled]="!selectedCategory && sortBy === 'date_desc'"
+          >
+            Reset filters
+          </button>
+
         </div>
       </div>
 
@@ -230,16 +286,22 @@
 
         </table>
         <div class="pagination">
-  <p class="pagination-info">
+
+<p class="pagination-info">
+  @if (transactions && transactions.pagination.total > 0) {
     Showing {{ firstVisibleTransaction }}–{{ lastVisibleTransaction }}
-    of {{ transactions ? transactions.pagination.total : 0 }} transactions
-  </p>
+    of {{ transactions.pagination.total }} transactions
+  } @else {
+    No transactions to display
+  }
+</p>
+
 
   <div class="pagination-actions">
     <button
       type="button"
       class="pagination-button"
-      [disabled]="currentPage === 0 || loading"
+      [disabled]="currentPage === 0 || transactionsLoading"
       (click)="previousPage()"
     >
       Previous
@@ -252,7 +314,7 @@
     <button
       type="button"
       class="pagination-button"
-      [disabled]="currentPage + 1 >= totalPages || loading"
+      [disabled]="currentPage + 1 >= totalPages || transactionsLoading"
       (click)="nextPage()"
     >
       Next

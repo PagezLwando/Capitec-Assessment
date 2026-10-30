@@ -1,7 +1,8 @@
 import { CommonModule, CurrencyPipe } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { Subject, forkJoin, of } from 'rxjs';
+import { catchError, finalize, switchMap, takeUntil } from 'rxjs/operators';
 import { BaseChartDirective } from 'ng2-charts';
 import type { ChartConfiguration, ChartOptions } from 'chart.js';
 
@@ -25,13 +26,20 @@ import { SpendingApi } from '../../../../core/services/spending-api';
   templateUrl: './dashboard-page.html',
   styleUrl: './dashboard-page.scss',
 })
-export class DashboardPage implements OnInit {
+export class DashboardPage implements OnInit, OnDestroy {
   private readonly spendingApi = inject(SpendingApi);
+  private readonly cdr = inject(ChangeDetectorRef);
   private readonly customerId = '12345';
   readonly Math = Math;
 
   loading = true;
   errorMessage = '';
+  transactionsLoading = false;
+  transactionError = '';
+  periodError = '';
+
+  private readonly transactionRequests$ = new Subject<void>();
+private readonly destroy$ = new Subject<void>();
 
   period: SpendingPeriod = '30d';
   selectedCategory = '';
@@ -47,7 +55,7 @@ currentPage = 0;
   trends?: SpendingTrendsResponse;
   goals?: SpendingGoalsResponse;
   filters?: DashboardFiltersResponse;
-  transactions?: TransactionsResponse;
+  transactions?: TransactionsResponse | null;
 
   readonly periods = [
     { label: '7 days', value: '7d' },
@@ -105,11 +113,20 @@ currentPage = 0;
     ],
   };
 
-  ngOnInit(): void {
-    this.loadDashboard();
-  }
+ngOnInit(): void {
+  this.initialiseTransactionRequests();
+  this.loadDashboard();
+    this.loadTransactions();
 
+}
+
+ngOnDestroy(): void {
+  this.destroy$.next();
+  this.destroy$.complete();
+  this.transactionRequests$.complete();
+}
   
+
 private getPeriodStartDate(): string {
   const endDate = new Date();
   const startDate = new Date(endDate);
@@ -171,14 +188,18 @@ get lastVisibleTransaction(): number {
 previousPage(): void {
   if (this.currentPage > 0) {
     this.currentPage--;
-    this.loadDashboard();
+  this.loadTransactions();
+      this.scrollToTransactions();
+
   }
 }
 
 nextPage(): void {
   if (this.currentPage + 1 < this.totalPages) {
     this.currentPage++;
-    this.loadDashboard();
+  this.loadTransactions();
+      this.scrollToTransactions();
+
   }
 }
 
@@ -186,23 +207,14 @@ nextPage(): void {
   loadDashboard(): void {
     this.loading = true;
     this.errorMessage = '';
+      this.periodError = '';
+
 
     forkJoin({
       profile: this.spendingApi.getProfile(this.customerId),
       summary: this.spendingApi.getSummary(this.customerId, this.period),
       categories: this.spendingApi.getCategories(this.customerId, this.period),
       trends: this.spendingApi.getTrends(this.customerId, 12),
-      
-
-transactions: this.spendingApi.getTransactions(this.customerId, {
-  limit: this.pageSize,
-  offset: this.currentPage * this.pageSize,
-  category: this.selectedCategory || undefined,
-  startDate: this.getPeriodStartDate(),
-  endDate: this.getPeriodEndDate(),
-  sortBy: this.sortBy,
-}),
-
 
       goals: this.spendingApi.getGoals(this.customerId),
       filters: this.spendingApi.getFilters(this.customerId),
@@ -212,7 +224,6 @@ transactions: this.spendingApi.getTransactions(this.customerId, {
         this.summary = data.summary;
         this.categories = data.categories;
         this.trends = data.trends;
-        this.transactions = data.transactions;
         this.goals = data.goals;
         this.filters = data.filters;
 
@@ -244,28 +255,91 @@ transactions: this.spendingApi.getTransactions(this.customerId, {
         };
 
         this.loading = false;
+        this.cdr.markForCheck();
       },
       error: (error: unknown) => {
         console.error('Unable to load dashboard', error);
         this.errorMessage =
           'We could not load your spending information. Please try again.';
         this.loading = false;
+        this.cdr.markForCheck();
       },
     });
   }
 
-changePeriod(value: string): void {
-  if (['7d', '30d', '90d', '1y'].includes(value)) {
-    this.period = value as SpendingPeriod;
-    this.currentPage = 0;
-    this.loadDashboard();
-  }
+  
+
+loadTransactions(): void {
+  this.transactionRequests$.next();
 }
 
+
+private loadPeriodData(previousPeriod: SpendingPeriod): void {
+
+  this.errorMessage = '';
+  this.transactionError = '';
+
+  forkJoin({
+    summary: this.spendingApi.getSummary(
+      this.customerId,
+      this.period,
+    ),
+    categories: this.spendingApi.getCategories(
+      this.customerId,
+      this.period,
+    ),
+  }).subscribe({
+    next: (data) => {
+      this.summary = data.summary;
+      this.categories = data.categories;
+      this.currentPage = 0;
+      this.loadTransactions();
+
+      this.categoryData = {
+        labels: data.categories.categories.map(
+          (item) => item.name,
+        ),
+        datasets: [
+          {
+            data: data.categories.categories.map(
+              (item) => item.amount,
+            ),
+            backgroundColor: data.categories.categories.map(
+              (item) => item.color,
+            ),
+            borderWidth: 0,
+          },
+        ],
+      };
+      this.cdr.markForCheck();
+
+    },
+    error: (error: unknown) => {
+      console.error('Unable to update spending period', error);
+      this.periodError = 'We could not update your spending information. Please try again.';        
+      this.cdr.markForCheck();
+    },
+  });
+}
+
+changePeriod(value: string): void {
+  if (
+    ['7d', '30d', '90d', '1y'].includes(value) &&
+    value !== this.period
+  ) {
+    const previousPeriod = this.period;
+
+    this.period = value as SpendingPeriod;
+    this.currentPage = 0;
+    this.periodError = '';
+
+    this.loadPeriodData(this.period);
+  }
+}
 changeCategory(value: string): void {
   this.selectedCategory = value;
   this.currentPage = 0;
-  this.loadDashboard();
+  this.loadTransactions();
 }
 
 changeSort(value: string): void {
@@ -274,7 +348,7 @@ changeSort(value: string): void {
   ) {
     this.sortBy = value as TransactionSort;
     this.currentPage = 0;
-    this.loadDashboard();
+  this.loadTransactions();
   }
 }
 
@@ -283,10 +357,86 @@ changeSort(value: string): void {
     this.loadDashboard();
   }
 
+  retryPeriodUpdate(): void {
+  this.loadPeriodData(this.period);
+}
+
   trackByTransactionId(
     _index: number,
     transaction: { id: string },
   ): string {
     return transaction.id;
   }
+
+  
+resetTransactionFilters(): void {
+  this.selectedCategory = '';
+  this.sortBy = 'date_desc';
+  this.currentPage = 0;
+  this.loadTransactions();
+}
+
+  
+scrollToTransactions(): void {
+  document
+    .querySelector('.transactions-panel')
+    ?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+}
+
+viewTopCategory(): void {
+  if (!this.summary?.topCategory) {
+    return;
+  }
+
+  this.selectedCategory = this.summary.topCategory;
+  this.currentPage = 0;
+  this.loadTransactions();
+  this.scrollToTransactions();
+}
+
+
+private initialiseTransactionRequests(): void {
+  this.transactionRequests$
+    .pipe(
+      switchMap(() => {
+        this.transactionsLoading = true;
+        this.transactionError = '';
+
+        return this.spendingApi
+          .getTransactions(this.customerId, {
+            limit: this.pageSize,
+            offset: this.currentPage * this.pageSize,
+            category: this.selectedCategory || undefined,
+            startDate: this.getPeriodStartDate(),
+            endDate: this.getPeriodEndDate(),
+            sortBy: this.sortBy,
+          })
+          .pipe(
+            catchError((error: unknown) => {
+              console.error('Unable to load transactions', error);
+              this.transactionError = 'Unable to load transactions. Please try again.';              
+              this.cdr.markForCheck();
+              return of(null);
+            }),
+            finalize(() => {
+              this.transactionsLoading = false;
+              this.cdr.markForCheck();
+            }),
+          );
+      }),
+      takeUntil(this.destroy$),
+    )
+    .subscribe((result) => {
+  if (result) {
+    this.transactions = result;
+    this.transactionError = '';
+  }
+
+  this.cdr.markForCheck();
+});
+}
+
 }
