@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { delay, map } from 'rxjs/operators';
+import { Observable, of, throwError } from 'rxjs';
+import { delay } from 'rxjs/operators';
 
 import {
   CategoriesResponse,
@@ -34,14 +34,24 @@ export class SpendingApi {
     return of(data).pipe(delay(this.simulatedLatencyMs));
   }
 
-  private assertCustomer(customerId: string): void {
+
+  private assertCustomer(customerId: string): Observable<never> | null {
     if (customerId !== CUSTOMER_ID) {
-      throw new Error(`Customer ${customerId} was not found.`);
+      return throwError(
+        () => new Error(`Customer ${customerId} was not found.`),
+      );
     }
+
+    return null;
   }
 
+
   private dateOnly(date: Date): string {
-    return date.toISOString().slice(0, 10);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+
+      return `${year}-${month}-${day}`; 
   }
 
   private startOfPeriod(period: SpendingPeriod, reference = new Date()): Date {
@@ -102,7 +112,12 @@ export class SpendingApi {
   }
 
   getProfile(customerId: string): Observable<CustomerProfile> {
-    this.assertCustomer(customerId);
+    // this.assertCustomer(customerId);
+    const customerError = this.assertCustomer(customerId);
+
+if (customerError) {
+  return customerError;
+}
     return this.respond(MOCK_CUSTOMER);
   }
 
@@ -110,7 +125,12 @@ export class SpendingApi {
     customerId: string,
     period: SpendingPeriod = '30d',
   ): Observable<SpendingSummary> {
-    this.assertCustomer(customerId);
+    // this.assertCustomer(customerId);
+    const customerError = this.assertCustomer(customerId);
+
+if (customerError) {
+  return customerError;
+}
 
     const current = this.filterByPeriod(MOCK_TRANSACTIONS, period);
     const start = this.startOfPeriod(period);
@@ -159,7 +179,12 @@ export class SpendingApi {
     startDate?: string,
     endDate?: string,
   ): Observable<CategoriesResponse> {
-    this.assertCustomer(customerId);
+    // this.assertCustomer(customerId);
+    const customerError = this.assertCustomer(customerId);
+
+if (customerError) {
+  return customerError;
+}
 
     const start = startDate ?? this.dateOnly(this.startOfPeriod(period));
     const end = endDate ?? this.dateOnly(new Date());
@@ -185,7 +210,12 @@ export class SpendingApi {
     customerId: string,
     months = 12,
   ): Observable<SpendingTrendsResponse> {
-    this.assertCustomer(customerId);
+    // this.assertCustomer(customerId);
+    const customerError = this.assertCustomer(customerId);
+
+if (customerError) {
+  return customerError;
+}
 
     const monthCount = Math.min(24, Math.max(1, Math.floor(months)));
     const trends: SpendingTrend[] = [];
@@ -221,7 +251,12 @@ export class SpendingApi {
     customerId: string,
     query: TransactionQuery = {},
   ): Observable<TransactionsResponse> {
-    this.assertCustomer(customerId);
+    // this.assertCustomer(customerId);
+    const customerError = this.assertCustomer(customerId);
+
+if (customerError) {
+  return customerError;
+}
 
     const limit = Math.max(1, Math.min(100, Math.floor(query.limit ?? 10)));
     const offset = Math.max(0, Math.floor(query.offset ?? 0));
@@ -277,12 +312,21 @@ export class SpendingApi {
   }
 
   getGoals(customerId: string): Observable<{ goals: SpendingGoal[] }> {
-    this.assertCustomer(customerId);
+    const customerError = this.assertCustomer(customerId);
+
+    if (customerError) {
+      return customerError;
+    }
+
     return this.respond({ goals: MOCK_GOALS });
   }
 
   getFilters(customerId: string): Observable<DashboardFiltersResponse> {
-    this.assertCustomer(customerId);
+    const customerError = this.assertCustomer(customerId);
+
+    if (customerError) {
+      return customerError;
+    }
 
     return this.respond({
       categories: CATEGORY_CONFIG.map((category) => ({ ...category })),
