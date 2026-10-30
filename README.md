@@ -1,59 +1,155 @@
-# CustomerSpendingInsights
+# Customer Spending Insights
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.27.
+A customer spending analytics dashboard built with Angular. The application provides an overview of customer spending patterns, transaction activity, category breakdowns, spending trends and financial goals.
 
-## Development server
+## Features
 
-To start a local development server, run:
+- **Customer overview** – View customer profile information and spending summaries.
+- **Spending analytics** – Track total spending, transaction counts and average transaction values.
+- **Category breakdown** – Explore spending across categories.
+- **Spending trends** – Visualise spending patterns over time.
+- **Transaction history** – Browse transactions with pagination and filtering.
+- **Dashboard filters** – Filter spending data by reporting period and transaction criteria.
+- **Spending goals** – Monitor financial goals and progress.
+- **Responsive interface** – Designed to work across desktop and mobile screen sizes.
+- **Loading and error states** – Provides feedback when data is loading or requests fail.
 
-```bash
-ng serve
-```
+## Technology Stack
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+- Angular 21
+- TypeScript
+- RxJS
+- Angular Material / Angular CDK
+- Chart.js and ng2-charts
+- SCSS
+- Vitest
+- Node.js and npm
 
-## Code scaffolding
+## Prerequisites
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Ensure the following are installed:
 
-```bash
-ng generate component component-name
-```
+- Node.js (compatible with the Angular 21 toolchain)
+- npm
+- Angular CLI (optional, as the project uses the local CLI)
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Getting Started
 
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+### 1. Clone the repository
 
 ```bash
-ng test
+git clone https://github.com/PagezLwando/Capitec-Assessment
+cd customer-spending-insights
 ```
 
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+### 2. Install dependencies
 
 ```bash
-ng e2e
+npm install
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+### 3. Start the development server
 
-## Additional Resources
+```bash
+npm start
+```
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Open [http://localhost:4200](http://localhost:4200) in your browser.
+
+The development server automatically reloads when source files change.
+
+## Available Commands
+
+| Command | Description |
+|---|---|
+| `npm start` | Start the development server |
+| `npm test` | Run unit tests |
+| `npm test -- --watch=false` | Run unit tests once |
+| `npm run build` | Generate a production build |
+
+Production build files are generated in:
+
+```text
+dist/customer-spending-insights/
+```
+
+## Testing
+
+The project uses Vitest through Angular's unit testing integration.
+
+Run the tests:
+
+```bash
+npm test
+```
+
+Run once without watch mode:
+
+```bash
+npm test -- --watch=false
+```
+
+The test suite covers the spending API service, data retrieval, filtering, pagination, validation and application setup.
+
+## Project Structure
+
+```text
+src/
+└── app/
+    ├── core/
+    │   ├── data/
+    │   ├── models/
+    │   └── services/
+    ├── features/
+    │   └── dashboard/
+    │       ├── components/
+    │       └── pages/
+    ├── app.config.ts
+    ├── app.routes.ts
+    └── app.ts
+```
+
+## Data
+
+The dashboard currently uses mock customer and transaction data through the spending API service. This allows the application and its analytics features to operate without an external backend service.
+
+## Production Build
+
+Generate an optimised production build:
+
+```bash
+npm run build
+```
+
+## Docker
+
+A `Dockerfile` and `.dockerignore` are included to support containerised deployment.
+
+### Build the Docker image
+
+```bash
+docker build -t customer-spending-insights .
+```
+
+### Run the container
+
+```bash
+docker run -d -p 8080:80 --name customer-spending-insights customer-spending-insights
+```
+
+Open [http://localhost:8080](http://localhost:8080) to access the application.
+
+### Docker verification
+
+The Docker configuration has been added to the project, but the Docker image build and container execution have not yet been verified because Docker Desktop is not installed in the development environment.
+
+## Future Improvements
+
+- Integrate a live backend API.
+- Add authentication and customer account management.
+- Support exporting transaction and spending reports.
+- Expand automated testing and end-to-end coverage.
+
+## License
+
+This project was developed as part of a software development assessment.
